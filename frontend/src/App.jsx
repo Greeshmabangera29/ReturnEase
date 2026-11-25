@@ -1,51 +1,84 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PackageOpen } from 'lucide-react'
 import ProgressSteps from './components/ProgressSteps'
+import ErrorBanner from './components/ErrorBanner'
 import OrderSelection from './screens/OrderSelection'
 import ReturnDetails from './screens/ReturnDetails'
 import AiRecommendation from './screens/AiRecommendation'
 import Confirmation from './screens/Confirmation'
-import { sampleOrders } from './data/orders'
-import { getMockRecommendation } from './data/mockAi'
-
-// TEMPORARY (Phase 2 only): the backend will generate real request IDs in Phase 3.
-function generateMockRequestId() {
-  return `RE-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
-}
+import { analyzeReturn, createReturnRequest, fetchOrders } from './api'
 
 // App owns all flow state and decides which of the 4 screens to show.
 // Screens are "dumb": they render props and call the callbacks below.
 export default function App() {
   const [step, setStep] = useState(1)
+  const [orders, setOrders] = useState([])
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [returnReason, setReturnReason] = useState('')
   const [description, setDescription] = useState('')
   const [recommendation, setRecommendation] = useState(null)
   const [selectedResolution, setSelectedResolution] = useState('')
-  const [requestId, setRequestId] = useState('')
+  const [savedRequest, setSavedRequest] = useState(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+
+  // Load the sample orders from the backend once, when the app opens.
+  useEffect(() => {
+    fetchOrders()
+      .then(setOrders)
+      .catch((error) => setErrorMessage(error.message))
+      .finally(() => setIsLoadingOrders(false))
+  }, [])
+
+  function goToStep(nextStep) {
+    setErrorMessage('')
+    setStep(nextStep)
+  }
 
   function handleSelectOrder(order) {
     setSelectedOrder(order)
-    setStep(2)
+    goToStep(2)
   }
 
   async function handleGetRecommendation() {
     setIsAnalyzing(true)
-    const result = await getMockRecommendation(returnReason)
-    setRecommendation(result)
-    setSelectedResolution('') // customer must actively choose
-    setIsAnalyzing(false)
-    setStep(3)
+    setErrorMessage('')
+    try {
+      const result = await analyzeReturn({
+        orderId: selectedOrder.order_id,
+        returnReason,
+        customerDescription: description.trim(),
+      })
+      setRecommendation(result)
+      setSelectedResolution('') // customer must actively choose
+      goToStep(3)
+    } catch (error) {
+      setErrorMessage(error.message)
+    } finally {
+      setIsAnalyzing(false)
+    }
   }
 
   async function handleSubmitRequest() {
     setIsSubmitting(true)
-    await new Promise((resolve) => setTimeout(resolve, 600)) // simulate save
-    setRequestId(generateMockRequestId())
-    setIsSubmitting(false)
-    setStep(4)
+    setErrorMessage('')
+    try {
+      const saved = await createReturnRequest({
+        orderId: selectedOrder.order_id,
+        returnReason,
+        customerDescription: description.trim(),
+        aiRecommendation: recommendation,
+        selectedResolution,
+      })
+      setSavedRequest(saved)
+      goToStep(4)
+    } catch (error) {
+      setErrorMessage(error.message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   function handleStartOver() {
@@ -54,8 +87,8 @@ export default function App() {
     setDescription('')
     setRecommendation(null)
     setSelectedResolution('')
-    setRequestId('')
-    setStep(1)
+    setSavedRequest(null)
+    goToStep(1)
   }
 
   return (
@@ -77,7 +110,13 @@ export default function App() {
           <ProgressSteps currentStep={step} />
         </div>
 
-        {step === 1 && <OrderSelection orders={sampleOrders} onSelectOrder={handleSelectOrder} />}
+        <div className={step === 1 ? '' : 'mx-auto max-w-2xl'}>
+          <ErrorBanner message={errorMessage} />
+        </div>
+
+        {step === 1 && (
+          <OrderSelection orders={orders} isLoading={isLoadingOrders} onSelectOrder={handleSelectOrder} />
+        )}
 
         {step === 2 && (
           <div className="mx-auto max-w-2xl">
@@ -101,21 +140,14 @@ export default function App() {
               recommendation={recommendation}
               selectedResolution={selectedResolution}
               onResolutionChange={setSelectedResolution}
-              onBack={() => setStep(2)}
+              onBack={() => goToStep(2)}
               onSubmit={handleSubmitRequest}
               isSubmitting={isSubmitting}
             />
           </div>
         )}
 
-        {step === 4 && (
-          <Confirmation
-            requestId={requestId}
-            productName={selectedOrder.productName}
-            selectedResolution={selectedResolution}
-            onStartOver={handleStartOver}
-          />
-        )}
+        {step === 4 && <Confirmation savedRequest={savedRequest} onStartOver={handleStartOver} />}
       </main>
     </div>
   )

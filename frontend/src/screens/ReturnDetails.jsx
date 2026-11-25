@@ -1,7 +1,7 @@
 import { ArrowLeft, Loader2, Sparkles } from 'lucide-react'
 import Button from '../components/Button'
 import ProductSummary from '../components/ProductSummary'
-import { returnReasons } from '../data/orders'
+import { returnReasons } from '../constants'
 
 const MIN_DESCRIPTION_LENGTH = 10
 const MAX_DESCRIPTION_LENGTH = 500
