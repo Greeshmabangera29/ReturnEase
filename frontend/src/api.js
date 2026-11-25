@@ -1,6 +1,9 @@
 // All calls to the FastAPI backend live here.
 // Paths start with /api — the Vite dev proxy forwards them to http://localhost:8000.
 
+const SERVER_UNREACHABLE =
+  'Could not reach the server. Please make sure the backend is running, then refresh the page.'
+
 async function request(path, options = {}) {
   let response
   try {
@@ -9,13 +12,15 @@ async function request(path, options = {}) {
       ...options,
     })
   } catch {
-    throw new Error('Could not reach the server. Please check that the backend is running.')
+    throw new Error(SERVER_UNREACHABLE)
   }
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
-    const detail = typeof body.detail === 'string' ? body.detail : 'Something went wrong.'
-    throw new Error(detail)
+    if (typeof body.detail === 'string') throw new Error(body.detail)
+    // A 5xx without a FastAPI error body usually means the dev proxy couldn't reach the backend.
+    if (response.status >= 500) throw new Error(SERVER_UNREACHABLE)
+    throw new Error('Something went wrong. Please check your details and try again.')
   }
   return response.json()
 }

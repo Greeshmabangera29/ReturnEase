@@ -8,8 +8,9 @@ export default function ProgressSteps({ currentStep }) {
     <ol className="flex items-center gap-2">
       {steps.map((label, index) => {
         const stepNumber = index + 1
-        const isDone = stepNumber < currentStep
-        const isActive = stepNumber === currentStep
+        const isFinished = currentStep === steps.length // on the confirmation screen, every step is done
+        const isDone = stepNumber < currentStep || isFinished
+        const isActive = stepNumber === currentStep && !isFinished
 
         return (
           <li key={label} className="flex flex-1 items-center gap-2 last:flex-none">

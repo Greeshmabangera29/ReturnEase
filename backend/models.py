@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # Only these values are accepted — anything else gets a 422 error automatically.
 ReturnReason = Literal[
@@ -24,6 +24,9 @@ class Order(BaseModel):
 
 
 class AnalyzeReturnRequest(BaseModel):
+    # Trim spaces first, so "          a" doesn't pass the 10-character minimum.
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     order_id: str
     return_reason: ReturnReason
     customer_description: str = Field(min_length=10, max_length=500)
@@ -43,6 +46,8 @@ class AnalyzeReturnResponse(AiRecommendation):
 
 
 class CreateReturnRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     order_id: str
     return_reason: ReturnReason
     customer_description: str = Field(min_length=10, max_length=500)
