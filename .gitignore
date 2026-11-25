@@ -1,0 +1,25 @@
+# Secrets — never commit real API keys
+.env
+*.env
+!.env.example
+
+# Python
+backend/venv/
+__pycache__/
+*.pyc
+
+# SQLite database (created at runtime)
+*.db
+
+# Node / Vite
+node_modules/
+dist/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local Claude Code launch config (machine-specific paths)
+.claude/
