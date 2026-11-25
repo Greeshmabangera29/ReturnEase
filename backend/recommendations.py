@@ -1,8 +1,5 @@
-"""Return recommendations.
-
-Phase 3: rule-based recommendation only (no AI yet).
-Phase 4 adds the OpenAI call and keeps this as the fallback when the API fails.
-"""
+"""Rule-based fallback recommendations, used when the Gemini API is unavailable
+(no key, network error, timeout or invalid response)."""
 
 from models import AiRecommendation
 

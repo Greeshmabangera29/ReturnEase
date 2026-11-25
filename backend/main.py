@@ -6,9 +6,10 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-# Load backend/.env (OPENAI_API_KEY, OPENAI_MODEL) before anything reads them.
+# Load backend/.env (GEMINI_API_KEY, GEMINI_MODEL) before anything reads them.
 load_dotenv()
 
+from ai_service import get_ai_recommendation  # noqa: E402
 from database import get_return_request, init_db, save_return_request  # noqa: E402
 from models import (  # noqa: E402
     AnalyzeReturnRequest,
@@ -49,12 +50,22 @@ def list_orders():
 
 @app.post("/api/analyze-return", response_model=AnalyzeReturnResponse)
 def analyze_return(payload: AnalyzeReturnRequest):
-    if find_order(payload.order_id) is None:
+    order = find_order(payload.order_id)
+    if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # Phase 3: rule-based only. Phase 4 calls OpenAI here and falls back to this.
-    recommendation = get_fallback_recommendation(payload.return_reason)
-    return AnalyzeReturnResponse(**recommendation.model_dump(), is_fallback=True)
+    # Try Gemini first; if it fails for any reason, use the rule-based fallback
+    # so the customer can always finish their request.
+    recommendation = get_ai_recommendation(
+        product_name=order.product_name,
+        return_reason=payload.return_reason,
+        customer_description=payload.customer_description.strip(),
+    )
+    if recommendation is not None:
+        return AnalyzeReturnResponse(**recommendation.model_dump(), is_fallback=False)
+
+    fallback = get_fallback_recommendation(payload.return_reason)
+    return AnalyzeReturnResponse(**fallback.model_dump(), is_fallback=True)
 
 
 @app.post("/api/return-requests", response_model=ReturnRequestRecord, status_code=201)

@@ -27,8 +27,14 @@ export default function AiRecommendation({
       <div className="mt-6 rounded-xl bg-indigo-50 p-4 ring-1 ring-indigo-100">
         <p className="flex items-center gap-2 text-sm font-medium text-indigo-700">
           <Sparkles size={16} />
-          AI analysis
+          {recommendation.is_fallback ? 'Suggested resolution' : 'AI analysis'}
         </p>
+        {recommendation.is_fallback && (
+          <p className="mt-1 text-xs text-slate-500">
+            Our AI assistant is unavailable right now, so this is a standard suggestion based on your
+            selected reason.
+          </p>
+        )}
         <dl className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
             <dt className="text-xs uppercase tracking-wide text-slate-500">Identified issue</dt>
